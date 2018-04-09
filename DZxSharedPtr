@@ -1,0 +1,76 @@
+#pragma once
+
+#include <unordered_map>
+
+
+template <typename T>
+class DZxSharedPtr
+{
+public:
+    DZxSharedPtr(T* p);
+    ~DZxSharedPtr();
+
+    DZxSharedPtr(const DZxSharedPtr& rhs);
+
+    T* operator ->();
+
+private:
+    using uint = unsigned int;
+    using uintPtr = uint*;
+    using refMap = std::unordered_map<T*, uintPtr>;
+
+    static refMap  g_refCount;
+
+    uintPtr   _pRef;
+    T*          _p;
+};
+
+template<typename T> 
+typename DZxSharedPtr<T>::refMap DZxSharedPtr<T>::g_refCount = {};
+
+template<typename T>
+T* DZxSharedPtr<T>::operator->()
+{
+    return _p;
+}
+
+template<typename T>
+DZxSharedPtr<T>::DZxSharedPtr(T* p)
+    :_p(p), _pRef(nullptr)
+{
+    auto it = g_refCount.find(p);
+    if (it == g_refCount.end())
+    {
+        _pRef = new uint(0);
+        g_refCount.insert({ _p, _pRef });
+    }
+    else
+    {
+        _pRef = it->second;
+    }
+
+    ++(*_pRef);
+}
+
+template<typename T>
+DZxSharedPtr<T>::DZxSharedPtr(const DZxSharedPtr& rhs)
+{
+    _p = rhs._p;
+    _pRef = rhs._pRef;
+
+    ++(*_pRef);
+}
+
+template<typename T>
+DZxSharedPtr<T>::~DZxSharedPtr()
+{
+    --(*_pRef);
+
+    if (*_pRef == 0)
+    {
+        delete _p;
+        delete _pRef;
+
+        g_refCount.erase(_p);
+    }
+}
