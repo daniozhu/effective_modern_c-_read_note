@@ -1,0 +1,89 @@
+class IObserver
+{
+public:
+    virtual void OnStateChanged(int state) = 0;
+    virtual ~IObserver() = default;
+};
+
+class ObserverA : public IObserver
+{
+public:
+    virtual void OnStateChanged(int state) override
+    {
+        std::cout << "Observer A gets notified with new state = " << state << std::endl;
+    }
+};
+
+class ObserverB : public IObserver
+{
+public:
+    virtual void OnStateChanged(int state) override
+    {
+        std::cout << "Observer B gets notified with new state =" << state << std::endl;
+    }
+};
+
+class Subject
+{
+public:
+    Subject(std::string name) 
+        :  m_name(name) 
+         , m_state(0)
+    {}
+
+    void AddObserver(const std::weak_ptr<IObserver>& observer) { m_observers.emplace_back(observer); }
+
+    void Notify()
+    {
+        auto iOb = m_observers.cbegin();
+        while (iOb != m_observers.cend())
+        {
+            auto sp = iOb->lock();  // try to get std::shared_ptr from a std::weak_ptr, if it's destroyed, return null.
+            if (sp) { // the observer is still alive
+                sp->OnStateChanged(m_state);
+                ++iOb;
+            }
+            else {  // the observer has been destroyed, we don't want to notify it anymore, so remove from the observer list
+                iOb = m_observers.erase(iOb); // erase return the iterator right after the deleted item
+            }
+        }
+    }
+
+    void SetState(int newState)
+    {
+        if (m_state != newState)
+        {
+            m_state = newState;
+
+            // state changed, notify all the observers
+            Notify();
+        }
+    }
+
+private:
+    std::string m_name;
+    std::vector<std::weak_ptr<IObserver>>    m_observers;
+
+    int m_state;
+};
+
+int main()
+{
+    std::unique_ptr<Subject> spSub{ new Subject("State Machine") };
+    {
+        std::shared_ptr<ObserverA> obA = std::make_shared<ObserverA>();
+        spSub->AddObserver(obA);
+
+        std::shared_ptr<ObserverB> obB = std::make_shared<ObserverB>();
+        spSub->AddObserver(obB);
+
+        spSub->SetState(10);  // notify both Observer A and B with 10
+    }  // the two observers are destroyed when goes out of the scope, the weak_ptrs holding in subject are expired.
+
+    spSub->SetState(20);   // no observers alive, weak_ptr lock return null
+
+    std::shared_ptr<ObserverB> obC = std::make_shared<ObserverB>();
+    spSub->AddObserver(obC);
+
+    spSub->SetState(30);  // observer C is notified with 30
+}
