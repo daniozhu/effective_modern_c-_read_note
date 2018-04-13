@@ -1,0 +1,40 @@
+std::shared_ptr<Box>  loadBox(int id)
+{
+    // suppose this is a very Heavy load operation
+    std::unique_ptr<Box> ptr{ new Box };
+    return ptr;
+}
+
+std::shared_ptr<const Box> fastLoadBox(int id)
+{
+    static std::unordered_map<int, std::weak_ptr<const Box>> cache;
+
+    auto objPtr = cache[id].lock();
+    if (!objPtr)
+    {
+
+        // the cached Box has been destroied outside or the box with the id has not yet been cached before
+        // either case, just try to clean the cache with the box id
+        cache.erase(id);
+
+        objPtr = loadBox(id);
+        cache[id] = objPtr;
+    }
+
+    return objPtr;
+}
+
+int main()
+{
+    {
+        auto boxPtr = fastLoadBox(1);    // loadBox then cache it
+        auto boxPtr1 = fastLoadBox(1);   // get from cache directly
+
+        auto boxPtr2 = fastLoadBox(2);   // loadBox then cache it
+    }  // box1 and box2 are all destroyed, cached weak_ptrs are all expired
+
+    auto boxptr3 = fastLoadBox(1);      // loadBox then cache it
+    
+    return 0;
+    
+}
