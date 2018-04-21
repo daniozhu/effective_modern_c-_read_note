@@ -13,6 +13,8 @@ public:
     DZxSharedPtr(const DZxSharedPtr& rhs);
 
     T* operator ->();
+    explicit operator bool();
+    T& operator *();
 
 private:
     using uint = unsigned int;
@@ -32,6 +34,18 @@ template<typename T>
 T* DZxSharedPtr<T>::operator->()
 {
     return _p;
+}
+
+template< typename T>
+DZxSharedPtr<T>::operator bool()
+{
+    return _p != nullptr;
+}
+
+template<typename T>
+T& DZxSharedPtr<T>::operator *()
+{
+    return *_p;
 }
 
 template<typename T>
